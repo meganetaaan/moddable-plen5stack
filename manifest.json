@@ -1,8 +1,21 @@
 {
-  "include": ["$(MODDABLE)/examples/manifest_base.json"],
-  "modules": { 
-		"*": [
-      "./main"
-    ]
+  "include": [
+    "$(MODDABLE)/examples/manifest_base.json",
+    "$(MODDABLE)/modules/pins/digital/manifest.json",
+    "$(MODDABLE)/modules/pins/i2c/manifest.json"
+  ],
+  "modules": {
+    "*": ["$(MODDABLE)/modules/drivers/neopixel/*", "./*"]
+  },
+  "preload": ["neopixel"],
+  "platforms": {
+    "esp32": {
+      "modules": {
+        "*": "$(MODULES)/drivers/neopixel/esp32/*"
+      }
+    },
+    "...": {
+      "error": "unsupported platform"
+    }
   }
 }
