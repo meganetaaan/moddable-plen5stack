@@ -1,6 +1,8 @@
 import { I2C } from 'pins/i2c'
-import Digital from 'pins/digital'
+import Digital, { Monitor } from 'pins/digital'
 import NeoPixel from 'neopixel'
+
+declare function trace(message: unknown): void
 
 /* i2c list memo
 main
@@ -30,7 +32,6 @@ const SERVO_POWER_PIN = 5
 const SERVO_ADDRESS = 0x6a
 const SERVO_NUM = 8
 const EEPROM_ADDRESS = 0x56
-
 const INITIAL_SERVO_ANGLE: ServoAngles8 = [1000, 630, 300, 600, 240, 600, 1000, 720]
 Object.freeze(INITIAL_SERVO_ANGLE)
 
@@ -52,11 +53,11 @@ export class PLEN5Stack {
     order: 'RGB',
     timing: TIMING_WS2812B,
   })
-  #servoAngles: ServoAngles8 = INITIAL_SERVO_ANGLE
+  #initialServoAngles: ServoAngles8 = INITIAL_SERVO_ANGLE
+  #servoAngles: ServoAngles8 = [...INITIAL_SERVO_ANGLE]
   #initialized = false
-  #write8: (address: number, command: number) => void = (address, command) => {
-    this.#i2c.write(address, command)
-  }
+
+  /* accessors */
   get initialized(): boolean {
     return this.#initialized
   }
@@ -64,9 +65,26 @@ export class PLEN5Stack {
     return [...this.#servoAngles]
   }
 
-  /* public fields */
+  /* private methods */
+  #write8: (address: number, command: number) => void = (address, command) => {
+    this.#i2c.write(address, command)
+  }
+  #readEEPROM: (address: number) => string = (address) => {
+    this.#eeprom.write(address >> 8, address & 0xff)
+    // avoid 40 bytes limit of i2c#read
+    const buf1 = this.#eeprom.read(40)
+    const buf2 = this.#eeprom.read(3)
+    const buffer = new Uint8Array([...buf1, ...buf2])
+    let str = ''
+    new Uint8Array(buffer).forEach(function (byte: number) {
+      str += String.fromCharCode(byte)
+    })
+    return str
+  }
+
+  /* public methods */
   constructor() {
-    this.#powerpin.write(0) // poweron
+    this.#powerpin.write(0) // poweroff
     this.servoInitialSet()
     this.#powerpin.write(1) // poweron
     this.#led.brightness = 64
@@ -98,11 +116,21 @@ export class PLEN5Stack {
     return
   }
   setAngle(angles: ServoAngles8, duration: number): void {
+    const steps = [0, 0, 0, 0, 0, 0, 0, 0]
+    const speed = 10
+    duration = duration / speed
     angles.forEach((angle, index) => {
-      if (angle != null) {
-        this.servoWrite(index, angle / 10)
+      const target = this.#initialServoAngles[index] - angle
+      if (target != angle) {
+        steps[index] = (target - this.#servoAngles[index]) / duration
       }
     })
+    for (let i = 0; i < duration; i++) {
+      for (let n = 0; n < SERVO_NUM; n++) {
+        this.#servoAngles[n] += steps[n]
+        this.servoWrite(n, this.#servoAngles[n] / 10)
+      }
+    }
     return
   }
   setEyeColor(r: number, g: number, b: number): void {
@@ -110,11 +138,42 @@ export class PLEN5Stack {
     this.#led.fill(color)
     this.#led.update()
   }
-  getMotion(motionKey: MotionKey, num: number): string {
-    this.#i2c.write(EEPROM_ADDRESS)
-    return 'hoge'
-  }
-  playMotion(mitionKey: MotionKey): void {
-    return
+  playMotion(motionKey: MotionKey): string {
+    let readAddr = 0x32 + 860 * motionKey
+    let file = ''
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+      let str = ''
+      file = this.#readEEPROM(readAddr)
+      readAddr += 43
+      let listNum = 0
+      if (file.substr(0, 3) !== '>MF') {
+        break
+      }
+      listNum += 3
+      str = file.substring(listNum, listNum + 2)
+      if (motionKey != Number.parseInt(str, 16)) {
+        break
+      }
+      listNum += 4
+      str = file.substring(listNum, listNum + 4)
+      const time = Number.parseInt(str, 16)
+
+      const angles = []
+      listNum += 4
+      for (let i = 0; i < SERVO_NUM; i++) {
+        str = file.substring(listNum, listNum + 4)
+        const n = Number.parseInt(str, 16)
+        if (n >= 0x7fff) {
+          angles.push(n - 0x10000)
+        } else {
+          angles.push(n & 0xffff)
+        }
+        listNum += 4
+      }
+      trace(`angles: ${angles}\n`)
+      this.setAngle(angles as ServoAngles8, time)
+    }
+    return file
   }
 }
