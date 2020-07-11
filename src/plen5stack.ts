@@ -66,9 +66,18 @@ export class PLEN5Stack {
   }
 
   /* private methods */
+  /**
+   * write 8bit command
+   * @param address address of register
+   * @param command command to write
+   */
   #write8: (address: number, command: number) => void = (address, command) => {
     this.#i2c.write(address, command)
   }
+  /**
+   * Read EEPROM on the module board
+   * @param address address of eeprom
+   */
   #readEEPROM: (address: number) => string = (address) => {
     this.#eeprom.write(address >> 8, address & 0xff)
     // avoid 40 bytes limit of i2c#read
@@ -81,25 +90,10 @@ export class PLEN5Stack {
     })
     return str
   }
-
-  /* public methods */
-  constructor() {
-    this.#powerpin.write(0) // poweroff
-    this.servoInitialSet()
-    this.#powerpin.write(1) // poweron
-    this.#led.brightness = 64
-  }
-  servoWrite(index: number, degrees: number): void {
-    if (!this.initialized) {
-      this.initPCA9865()
-    }
-    const pwmVal = Math.round((degrees * 100 * 226) / 10000) + 0x66
-    const highByte = pwmVal > 0xff ? 0x01 : 0x00
-    this.#write8(SERVO_NUM + index * 4, pwmVal)
-    this.#write8(SERVO_NUM + index * 4 + 1, highByte)
-    return
-  }
-  initPCA9865(): void {
+  /**
+   * Initialize servo control IC
+   */
+  #initPCA9865: () => void = () => {
     this.#i2c.write(0xfe, 0x85) //PRE_SCALE
     this.#i2c.write(0xfa, 0x00) //ALL_LED_ON_L
     this.#i2c.write(0xfb, 0x00) //ALL_LED_ON_H
@@ -109,12 +103,46 @@ export class PLEN5Stack {
     this.#initialized = true
     return
   }
+
+  /* public methods */
+  /**
+   * constructor
+   */
+  constructor() {
+    this.#powerpin.write(0) // poweroff
+    this.servoInitialSet()
+    this.#powerpin.write(1) // poweron
+    this.#led.brightness = 64
+  }
+  /**
+   * Write a single servo angle
+   * @param index index of servo
+   * @param degrees degrees relative to initial angle
+   */
+  servoWrite(index: number, degrees: number): void {
+    if (!this.initialized) {
+      this.#initPCA9865()
+    }
+    const pwmVal = Math.round((degrees * 100 * 226) / 10000) + 0x66
+    const highByte = pwmVal > 0xff ? 0x01 : 0x00
+    this.#write8(SERVO_NUM + index * 4, pwmVal)
+    this.#write8(SERVO_NUM + index * 4 + 1, highByte)
+    return
+  }
+  /**
+   * Set servos to intial angle
+   */
   servoInitialSet(): void {
     INITIAL_SERVO_ANGLE.forEach((angle, index) => {
       this.servoWrite(index, angle / 10)
     })
     return
   }
+  /**
+   * Set angles of servos
+   * @param angles servo angles [degrees * 10]
+   * @param duration duration to change angles
+   */
   setAngle(angles: ServoAngles8, duration: number): void {
     const steps = [0, 0, 0, 0, 0, 0, 0, 0]
     const speed = 10
@@ -133,11 +161,21 @@ export class PLEN5Stack {
     }
     return
   }
+  /**
+   * Set PLEN's eye color in RGB
+   * @param r red value [0-255]
+   * @param g gleen value [0-255]
+   * @param b blue value [0-255]
+   */
   setEyeColor(r: number, g: number, b: number): void {
     const color = this.#led.makeRGB(r, g, b)
     this.#led.fill(color)
     this.#led.update()
   }
+  /**
+   * Play preinstalled motion
+   * @param motionKey key of motion file
+   */
   playMotion(motionKey: MotionKey): string {
     let readAddr = 0x32 + 860 * motionKey
     let file = ''
