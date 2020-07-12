@@ -1,5 +1,5 @@
 import { I2C } from 'pins/i2c'
-import Digital, { Monitor } from 'pins/digital'
+import Digital from 'pins/digital'
 import NeoPixel from 'neopixel'
 
 declare function trace(message: unknown): void
@@ -23,6 +23,9 @@ const TIMING_WS2812B = {
   space: { level0: 1, duration0: 350, level1: 0, duration1: 900 },
   reset: { level0: 0, duration0: 100, level1: 0, duration1: 100 },
 }
+Object.freeze(TIMING_WS2812B.mark)
+Object.freeze(TIMING_WS2812B.space)
+Object.freeze(TIMING_WS2812B.reset)
 Object.freeze(TIMING_WS2812B)
 
 // TODO: use config

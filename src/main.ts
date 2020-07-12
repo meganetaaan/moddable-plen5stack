@@ -1,6 +1,6 @@
 import { PLEN5Stack, ServoAngles8 } from 'plen5stack'
 import Timer from 'timer'
-import { Monitor } from 'pins/digital'
+import type { Monitor } from 'pins/digital'
 import { Application, Label, Style, Skin } from 'piu/MC'
 
 declare function trace(message: unknown): void
@@ -32,7 +32,6 @@ function updateMotionLabel(i: number) {
 }
 
 const plen5Stack = new PLEN5Stack()
-Timer.delay(100)
 plen5Stack.setEyeColor(0, 255, 0)
 
 const anglesA = [0, 0, 0, 0, 0, 0, 0, 0] as ServoAngles8
