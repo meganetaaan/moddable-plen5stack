@@ -2,6 +2,7 @@ import { PLEN5Stack, ServoAngles8 } from 'plen5stack'
 import Timer from 'timer'
 import type { Monitor } from 'pins/digital'
 import { Application, Label, Style, Skin } from 'piu/MC'
+import Sound from 'piu/Sound'
 
 declare function trace(message: unknown): void
 declare const button: {
@@ -9,6 +10,17 @@ declare const button: {
   b: Monitor
   c: Monitor
 }
+
+const helloSound = new Sound({
+  path: 'goodAfternoon.wav',
+})
+const niceToMeetYouSound = new Sound({
+  path: 'niceToMeetYou.wav',
+})
+const implenSound = new Sound({
+  path: 'implen.wav',
+})
+const actions: [number, Sound, string][] = [[0x08, niceToMeetYouSound, 'Greeting']]
 
 const motionLabel = new Label(null, {
   top: 0,
@@ -46,7 +58,7 @@ Timer.repeat(() => {
 }, 1000)
 */
 
-let i = 28
+let i = 0x08
 updateMotionLabel(i)
 button.a.onChanged = function () {
   if (this.read()) {
@@ -57,7 +69,15 @@ button.a.onChanged = function () {
 }
 button.b.onChanged = function () {
   if (this.read()) {
-    plen5Stack.playMotion(i)
+    // plen5Stack.playMotion(i)
+    helloSound.play()
+    plen5Stack.playMotion(0x08)
+    Timer.delay(500)
+    implenSound.play()
+    plen5Stack.playMotion(0x06)
+    Timer.delay(500)
+    niceToMeetYouSound.play()
+    plen5Stack.playMotion(0x05)
   }
 }
 button.c.onChanged = function () {

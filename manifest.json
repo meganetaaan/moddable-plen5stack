@@ -6,9 +6,12 @@
     "$(MODDABLE)/examples/manifest_piu.json"
   ],
   "modules": {
-    "*": ["./main"]
+    "*": ["./main"],
+    "piu/Sound": ["$(MODULES)/piu/MC/piuSound"]
   },
+  "preload": ["piu/Sound"],
   "resources": {
-    "*-alpha": ["$(MODDABLE)/examples/assets/fonts/OpenSans-Regular-16"]
+    "*-alpha": ["$(MODDABLE)/examples/assets/fonts/OpenSans-Regular-16"],
+    "*": ["./assets/voices/*"]
   }
 }
